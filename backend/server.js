@@ -89,7 +89,9 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
         res.status(500).json({ message: 'Error en el servidor' });
     }
 });
-
+app.get('/', (req, res) => {
+    res.json({ message: '¡Servidor funcionando correctamente!' });
+});
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
