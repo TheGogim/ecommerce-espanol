@@ -27,6 +27,16 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
+(async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('Conexión a MySQL exitosa');
+        connection.release();
+    } catch (err) {
+        console.error('Error al conectar a MySQL:', err);
+    }
+})();
+
 // Configurar Passport para Google OAuth
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
