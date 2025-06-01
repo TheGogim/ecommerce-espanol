@@ -102,6 +102,17 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 app.get('/', (req, res) => {
     res.json({ message: '¡Servidor funcionando correctamente!' });
 });
+app.get('/test-db-connection', async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('Conexión a MySQL desde Render exitosa');
+        connection.release();
+        res.json({ message: 'Conexión a MySQL exitosa' });
+    } catch (error) {
+        console.error('Error al conectar a MySQL desde Render:', error);
+        res.status(500).json({ message: 'Error al conectar a MySQL', error: error.message });
+    }
+});
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
