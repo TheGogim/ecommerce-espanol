@@ -27,6 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const API_URL = 'https://ecommerce-espanol.onrender.com/'; // Reemplaza con la URL real de tu backend
+
   useEffect(() => {
     // Verificar si hay un token en localStorage
     const token = localStorage.getItem('token');
@@ -39,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuthStatus = async (token: string) => {
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
+      const response = await axios.get(`${API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -56,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password
       });
@@ -75,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/register', {
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
         nombre,
         email,
         password
@@ -101,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       // Abrir ventana de Google OAuth
-      window.location.href = 'http://localhost:5000/api/auth/google';
+      window.location.href = `${API_URL}/api/auth/google`;
     } catch (error: any) {
       setError('Error al iniciar sesión con Google');
       throw error;
@@ -114,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
+      await axios.post(`${API_URL}/api/auth/forgot-password`, { email });
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error al enviar el correo de recuperación');
       throw error;
@@ -127,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      await axios.post('http://localhost:5000/api/auth/reset-password', {
+      await axios.post(`${API_URL}/api/auth/reset-password`, {
         token,
         password: newPassword
       });
