@@ -64,7 +64,7 @@ app.get('/api/auth/google',
 app.get('/api/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
-        res.redirect('http://localhost:5173'); // Redirige al frontend después de autenticar
+        res.redirect('https://ecommerceespanol.onrender.com/'); // Redirige al frontend después de autenticar
     }
 );
 
