@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = 'https://ecommerce-espanol.onrender.com/'; // Reemplaza con la URL real de tu backend
+  const API_URL = 'https://ecommerce-espanol.onrender.com'; // Reemplaza con la URL real de tu backend
 
   useEffect(() => {
     // Verificar si hay un token en localStorage
