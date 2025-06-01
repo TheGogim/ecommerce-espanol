@@ -5,6 +5,7 @@ import 'dotenv/config'; // Carga las variables de .env
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import session from 'express-session';
+import fs from 'fs';
 
 // Inicializar Express
 const app = express();
@@ -23,7 +24,10 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
-    ssl: { rejectUnauthorized: true },
+    ssl: {
+        ca: fs.readFileSync('./certs/ca.pem'), // Ruta al certificado CA
+        rejectUnauthorized: true
+    },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
