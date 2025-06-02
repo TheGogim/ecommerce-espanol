@@ -58,7 +58,7 @@ passport.use(new GoogleStrategy({
         const [users] = await pool.query('SELECT * FROM usuarios WHERE google_id = ?', [profile.id]);
         if (users.length === 0) {
             const [result] = await pool.query(
-                'INSERT INTO usuarios (google_id, email, name) VALUES (?, ?, ?)',
+                'INSERT INTO usuarios (google_id, email, nombre) VALUES (?, ?, ?)',
                 [profile.id, profile.emails[0].value, profile.displayName]
             );
             return done(null, { id: result.insertId, google_id: profile.id, email: profile.emails[0].value });
