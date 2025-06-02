@@ -55,7 +55,7 @@ passport.use(new GoogleStrategy({
     callbackURL: process.env.GOOGLE_CALLBACK_URL
 }, async (accessToken, refreshToken, profile, done) => {
     try {
-        const [users] = await pool.query('SELECT * FROM users WHERE google_id = ?', [profile.id]);
+        const [users] = await pool.query('SELECT * FROM usuarios WHERE google_id = ?', [profile.id]);
         if (users.length === 0) {
             const [result] = await pool.query(
                 'INSERT INTO usuarios (google_id, email, name) VALUES (?, ?, ?)',
@@ -72,7 +72,7 @@ passport.use(new GoogleStrategy({
 // Serializar y deserializar usuario
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
-    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
+    const [users] = await pool.query('SELECT * FROM usuarios WHERE id = ?', [id]);
     done(null, users[0]);
 });
 
