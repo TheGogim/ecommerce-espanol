@@ -29,7 +29,7 @@ const CatalogPage: React.FC = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        let url = 'http://localhost:5000/api/productos?';
+        let url = 'https://ecommerce-espanol.onrender.com/api/productos?';
         const params = new URLSearchParams();
 
         if (categoria) params.append('categoria', categoria);
