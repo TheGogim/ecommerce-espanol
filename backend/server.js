@@ -6,6 +6,11 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import session from 'express-session';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Inicializar Express
 const app = express();
@@ -25,7 +30,7 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
     ssl: {
-        ca: fs.readFileSync('/certs/ca.pem'), // Ruta al certificado CA
+        ca: fs.readFileSync(path.join(__dirname, 'certs', 'ca.pem')), // Ruta absoluta
         rejectUnauthorized: true
     },
     waitForConnections: true,
