@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Filter, SlidersHorizontal, ChevronDown, Search } from 'lucide-react';
-import axios from 'axios';
-
-interface Product {
-  id: number;
-  nombre: string;
-  precio: number;
-  imagen: string;
-  categoria: string;
-  descuento: number | null;
-  calificacion: number;
-}
+import { useSearchParams, Link } from 'react-router-dom';
+import { Filter, SlidersHorizontal, ChevronDown, Search, Heart } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import type { Product } from '../lib/supabase';
 
 const CatalogPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -21,92 +14,165 @@ const CatalogPage: React.FC = () => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('newest');
+  const { addToCart } = useCart();
+  const { user } = useAuth();
 
   const categoria = searchParams.get('categoria');
   const buscar = searchParams.get('buscar');
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        let url = 'https://ecommerce-espanol.onrender.com/api/productos?';
-        const params = new URLSearchParams();
-
-        if (categoria) params.append('categoria', categoria);
-        if (buscar) params.append('buscar', buscar);
-        if (priceRange.min) params.append('min_precio', priceRange.min);
-        if (priceRange.max) params.append('max_precio', priceRange.max);
-
-        switch (sortBy) {
-          case 'price_asc':
-            params.append('ordenar', 'precio_asc');
-            break;
-          case 'price_desc':
-            params.append('ordenar', 'precio_desc');
-            break;
-          case 'rating':
-            params.append('ordenar', 'calificacion');
-            break;
-          default:
-            params.append('ordenar', 'newest');
-        }
-
-        const response = await axios.get(`${url}${params.toString()}`);
-        setProducts(response.data);
-      } catch (error) {
-        console.error('Error al cargar productos:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, [categoria, buscar, priceRange, selectedCategories, sortBy]);
 
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('productos')
+        .select(`
+          *,
+          categorias (
+            nombre,
+            slug
+          )
+        `)
+        .eq('estado', 'activo');
+
+      // Apply filters
+      if (categoria) {
+        const { data: categoryData } = await supabase
+          .from('categorias')
+          .select('id')
+          .eq('slug', categoria)
+          .single();
+        
+        if (categoryData) {
+          query = query.eq('categoria_id', categoryData.id);
+        }
+      }
+
+      if (buscar) {
+        query = query.ilike('nombre', `%${buscar}%`);
+      }
+
+      if (priceRange.min) {
+        query = query.gte('precio', parseFloat(priceRange.min));
+      }
+
+      if (priceRange.max) {
+        query = query.lte('precio', parseFloat(priceRange.max));
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case 'price_asc':
+          query = query.order('precio', { ascending: true });
+          break;
+        case 'price_desc':
+          query = query.order('precio', { ascending: false });
+          break;
+        case 'rating':
+          query = query.order('calificacion', { ascending: false });
+          break;
+        default:
+          query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
+
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async (product: Product) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+
+    const finalPrice = product.descuento 
+      ? product.precio * (1 - product.descuento / 100)
+      : product.precio;
+
+    await addToCart({
+      id: 0,
+      productoId: product.id,
+      nombre: product.nombre,
+      precio: finalPrice,
+      imagen: product.imagen,
+      cantidad: 1
+    });
+  };
+
   const renderProductCard = (product: Product) => (
     <div key={product.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-      <div className="relative h-48">
+      <Link to={`/producto/${product.id}`} className="relative block">
         {product.descuento && (
-          <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 text-xs font-bold rounded">
+          <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 text-xs font-bold rounded z-10">
             -{product.descuento}%
           </div>
         )}
         <img 
           src={product.imagen} 
           alt={product.nombre}
-          className="w-full h-full object-cover rounded-t-lg"
+          className="w-full h-48 object-cover rounded-t-lg"
         />
-      </div>
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            // Handle add to favorites
+          }}
+          className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-gray-50 z-10"
+        >
+          <Heart className="h-5 w-5 text-gray-600" />
+        </button>
+      </Link>
       <div className="p-4">
-        <h3 className="text-lg font-medium text-gray-900">{product.nombre}</h3>
-        <p className="text-sm text-gray-600 mb-2">{product.categoria}</p>
+        <Link to={`/producto/${product.id}`}>
+          <h3 className="text-lg font-medium text-gray-900 hover:text-blue-600">{product.nombre}</h3>
+        </Link>
+        <p className="text-sm text-gray-600 mb-2">
+          {(product as any).categorias?.nombre || 'Sin categoría'}
+        </p>
         <div className="flex justify-between items-center">
           <div>
             {product.descuento ? (
               <>
                 <span className="text-lg font-bold text-gray-900">
-                  {(product.precio * (1 - product.descuento / 100)).toLocaleString('es-ES', {
+                  {(product.precio * (1 - product.descuento / 100)).toLocaleString('es-CO', {
                     style: 'currency',
-                    currency: 'EUR'
+                    currency: 'COP'
                   })}
                 </span>
                 <span className="ml-2 text-sm text-gray-500 line-through">
-                  {product.precio.toLocaleString('es-ES', {
+                  {product.precio.toLocaleString('es-CO', {
                     style: 'currency',
-                    currency: 'EUR'
+                    currency: 'COP'
                   })}
                 </span>
               </>
             ) : (
               <span className="text-lg font-bold text-gray-900">
-                {product.precio.toLocaleString('es-ES', {
+                {product.precio.toLocaleString('es-CO', {
                   style: 'currency',
-                  currency: 'EUR'
+                  currency: 'COP'
                 })}
               </span>
             )}
           </div>
-          <button className="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 transition-colors">
+          <button 
+            onClick={() => handleAddToCart(product)}
+            className="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 transition-colors"
+          >
             Añadir
           </button>
         </div>
@@ -146,7 +212,7 @@ const CatalogPage: React.FC = () => {
                 <div>
                   <h4 className="font-medium mb-2">Categorías</h4>
                   <div className="space-y-2">
-                    {['Tecnología', 'Hogar', 'Moda', 'Deportes', 'Belleza'].map((cat) => (
+                    {['tecnologia', 'hogar', 'moda', 'deportes', 'belleza'].map((cat) => (
                       <label key={cat} className="flex items-center">
                         <input
                           type="checkbox"
@@ -160,7 +226,7 @@ const CatalogPage: React.FC = () => {
                             }
                           }}
                         />
-                        <span className="ml-2">{cat}</span>
+                        <span className="ml-2 capitalize">{cat}</span>
                       </label>
                     ))}
                   </div>
@@ -235,7 +301,7 @@ const CatalogPage: React.FC = () => {
                     <div>
                       <h4 className="font-medium mb-2">Categorías</h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {['Tecnología', 'Hogar', 'Moda', 'Deportes', 'Belleza'].map((cat) => (
+                        {['tecnologia', 'hogar', 'moda', 'deportes', 'belleza'].map((cat) => (
                           <label key={cat} className="flex items-center">
                             <input
                               type="checkbox"
@@ -249,7 +315,7 @@ const CatalogPage: React.FC = () => {
                                 }
                               }}
                             />
-                            <span className="ml-2">{cat}</span>
+                            <span className="ml-2 capitalize">{cat}</span>
                           </label>
                         ))}
                       </div>

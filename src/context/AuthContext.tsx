@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { supabase } from '../lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
-  id: number;
+  id: string;
   nombre: string;
   email: string;
   role: string;
@@ -27,28 +28,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = 'https://ecommerce-espanol.onrender.com'; // Reemplaza con la URL real de tu backend
-
   useEffect(() => {
-    // Verificar si hay un token en localStorage
-    const token = localStorage.getItem('token');
-    if (token) {
-      checkAuthStatus(token);
-    } else {
-      setLoading(false);
-    }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserProfile(session.user);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await fetchUserProfile(session.user);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const checkAuthStatus = async (token: string) => {
+  const fetchUserProfile = async (authUser: SupabaseUser) => {
     try {
-      const response = await axios.get(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setUser(response.data);
+      const { data: profile, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        setError('Error al cargar el perfil del usuario');
+      } else if (profile) {
+        setUser({
+          id: profile.id,
+          nombre: profile.nombre,
+          email: authUser.email || '',
+          role: profile.role || 'user'
+        });
+      }
     } catch (error) {
-      localStorage.removeItem('token');
+      console.error('Error fetching user profile:', error);
+      setError('Error al cargar el perfil del usuario');
     } finally {
       setLoading(false);
     }
@@ -58,15 +82,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setUser(user);
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
+
+      if (data.user) {
+        await fetchUserProfile(data.user);
+      }
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al iniciar sesión');
+      setError(error.message || 'Error al iniciar sesión');
       throw error;
     } finally {
       setLoading(false);
@@ -77,35 +107,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, {
-        nombre,
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            nombre: nombre
+          }
+        }
       });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setUser(user);
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
+
+      if (data.user) {
+        await fetchUserProfile(data.user);
+      }
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al registrarse');
+      setError(error.message || 'Error al registrarse');
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setError(error.message);
+    } else {
+      setUser(null);
+    }
   };
 
   const loginWithGoogle = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Abrir ventana de Google OAuth
-      window.location.href = `${API_URL}/api/auth/google`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
     } catch (error: any) {
-      setError('Error al iniciar sesión con Google');
+      setError(error.message || 'Error al iniciar sesión con Google');
       throw error;
     } finally {
       setLoading(false);
@@ -116,9 +169,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      await axios.post(`${API_URL}/api/auth/forgot-password`, { email });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al enviar el correo de recuperación');
+      setError(error.message || 'Error al enviar el correo de recuperación');
       throw error;
     } finally {
       setLoading(false);
@@ -129,12 +189,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      await axios.post(`${API_URL}/api/auth/reset-password`, {
-        token,
+      const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
+
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al restablecer la contraseña');
+      setError(error.message || 'Error al restablecer la contraseña');
       throw error;
     } finally {
       setLoading(false);

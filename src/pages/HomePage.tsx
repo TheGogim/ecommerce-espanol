@@ -19,18 +19,17 @@ const HomePage: React.FC = () => {
   const { addToCart } = useCart();
   const { user } = useAuth();
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!user) {
-      // Redirigir a login si no hay usuario
       window.location.href = '/login';
       return;
     }
 
-    addToCart({
+    await addToCart({
       id: 0,
       productoId: 1,
       nombre: "Smartphone XTech Pro",
-      precio: 599.99,
+      precio: 1299900,
       imagen: "https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
       cantidad: 1
     });
@@ -150,7 +149,12 @@ const HomePage: React.FC = () => {
                   </div>
                 </Link>
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-gray-900">$1.299.900</span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {(1299900).toLocaleString('es-CO', {
+                      style: 'currency',
+                      currency: 'COP'
+                    })}
+                  </span>
                   <button 
                     onClick={handleAddToCart}
                     className="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 transition-colors"
